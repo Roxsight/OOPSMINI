@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Payment System</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <header>
+            <h1>💰 Blockchain Payment System</h1>
+            <p>Secure & Fast Cross-Border Transactions</p>
+        </header>
+
+        <!-- DOCK NAVIGATION -->
+        <div class="dock-container">
+            <nav class="dock">
+                <a href="#users" class="dock-item active" data-section="users">
+                    <div class="dock-icon">👥</div>
+                    <span class="dock-label">Users</span>
+                </a>
+                <a href="#send" class="dock-item" data-section="send">
+                    <div class="dock-icon">💸</div>
+                    <span class="dock-label">Send Money</span>
+                </a>
+                <a href="#rates" class="dock-item" data-section="rates">
+                    <div class="dock-icon">💱</div>
+                    <span class="dock-label">Rates</span>
+                </a>
+                <a href="#vault" class="dock-item" data-section="vault">
+                    <div class="dock-icon">🏦</div>
+                    <span class="dock-label">Vault</span>
+                </a>
+                <a href="#analytics" class="dock-item" data-section="analytics">
+                    <div class="dock-icon">📊</div>
+                    <span class="dock-label">Analytics</span>
+                </a>
+                <a href="#history" class="dock-item" data-section="history">
+                    <div class="dock-icon">📜</div>
+                    <span class="dock-label">History</span>
+                </a>
+            </nav>
+        </div>
+
+        <!-- DARK MODE TOGGLE -->
+        <div class="theme-toggle-container">
+            <button onclick="toggleDarkMode()" class="theme-toggle" id="theme-toggle">
+                <span class="toggle-icon">🌙</span>
+                <span class="toggle-text">Dark Mode</span>
+            </button>
+        </div>
+
+        <!-- USERS SECTION -->
+        <div class="users-section">
+            <h2>👥 Users</h2>
+            <div id="users-container" class="users-grid"></div>
+        </div>
+
+        <!-- REGISTER NEW USER SECTION -->
+        <div class="register-section">
+            <h2>➕ Register New User</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" id="reg-name" placeholder="Enter user name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>User Type:</label>
+                    <select id="reg-type" required>
+                        <option value="Basic">Basic User ($500 limit, 1% fee)</option>
+                        <option value="Premium">Premium User ($10,000 limit, 0.5% fee)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Initial Balance (USDT):</label>
+                    <input type="number" id="reg-balance" value="1000" step="0.01" min="0" required>
+                </div>
+
+                <button type="submit" class="btn-register">Register User 👤</button>
+            </form>
+            
+            <div id="new-user-info" style="display: none; margin-top: 20px; padding: 15px; background: #d4edda; border-radius: 8px; color: #155724;">
+                <strong>✅ User Created Successfully!</strong><br>
+                <span id="new-user-details"></span>
+            </div>
+        </div>
+
+        <!-- FAMILY VAULT SECTION -->
+        <div class="vault-section">
+            <h2>🏦 Family Vault - Secure Multi-Signature Escrow</h2>
+            <p style="color: #999; margin-bottom: 20px;">Create secure vaults with guardian approval system</p>
+            
+            <div class="vault-create-box">
+                <h3>Create New Vault</h3>
+                <form id="vault-form">
+                    <div class="form-group">
+                        <label>Vault Name:</label>
+                        <input type="text" id="vault-name" placeholder="e.g., House Construction Fund" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Purpose:</label>
+                        <input type="text" id="vault-purpose" placeholder="e.g., Build family home in Kerala" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Total Amount (USDT):</label>
+                        <input type="number" id="vault-amount" step="0.01" min="100" placeholder="10000" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Creator (Your Wallet):</label>
+                        <select id="vault-creator" required>
+                            <option value="">Select your wallet...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="guardians-section">
+                        <label>Add Guardians (Who can approve withdrawals):</label>
+                        <div id="guardians-list">
+                            <div class="guardian-item">
+                                <input type="text" class="guardian-name" placeholder="Guardian Name">
+                                <select class="guardian-address">
+                                    <option value="">Select wallet...</option>
+                                </select>
+                                <input type="text" class="guardian-role" placeholder="Role (e.g., Father, Elder)">
+                            </div>
+                        </div>
+                        <button type="button" onclick="addGuardianField()" class="btn-add-guardian">+ Add Another Guardian</button>
+                    </div>
+                    
+                    <button type="submit" class="btn-create-vault">Create Vault 🏦</button>
+                </form>
+            </div>
+            
+            <div class="vaults-container">
+                <h3>Your Active Vaults</h3>
+                <div id="vaults-grid" class="vaults-grid"></div>
+            </div>
+        </div>
+
+        <!-- SEND MONEY SECTION -->
+        <div class="transaction-section">
+            <h2>💸 Send Money</h2>
+            <form id="send-form">
+                <div class="form-group">
+                    <label>From:</label>
+                    <select id="sender" required>
+                        <option value="">Select sender...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>To:</label>
+                    <select id="recipient" required>
+                        <option value="">Select recipient...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Amount (USDT):</label>
+                    <input type="number" id="amount" step="0.01" min="0" required>
+                </div>
+
+                <button type="submit" class="btn-send">Send Money 🚀</button>
+            </form>
+        </div>
+
+        <!-- EXCHANGE RATES SECTION -->
+        <div class="rates-section">
+            <h2>💱 Live Exchange Rates</h2>
+            <p style="color: #999; margin-bottom: 20px;">Real-time currency conversion with AI recommendations</p>
+            
+            <div class="rate-calculator">
+                <h3>Currency Converter</h3>
+                <div style="display: flex; gap: 15px; align-items: end;">
+                    <div class="form-group" style="flex: 1; margin: 0;">
+                        <label>Amount (USDT):</label>
+                        <input type="number" id="convert-amount" value="100" step="0.01">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin: 0;">
+                        <label>To Currency:</label>
+                        <select id="convert-currency">
+                            <option value="AED">AED (UAE Dirham)</option>
+                            <option value="SAR">SAR (Saudi Riyal)</option>
+                            <option value="INR">INR (Indian Rupee)</option>
+                            <option value="PHP">PHP (Philippine Peso)</option>
+                            <option value="PKR">PKR (Pakistani Rupee)</option>
+                            <option value="EUR">EUR (Euro)</option>
+                        </select>
+                    </div>
+                    <button onclick="convertCurrency()" class="btn-convert">Convert 🔄</button>
+                </div>
+                <div id="convert-result" class="convert-result"></div>
+            </div>
+            
+            <div id="rates-container" class="rates-grid"></div>
+        </div>
+
+        <!-- ANALYTICS & CHARTS SECTION -->
+        <div class="analytics-section">
+            <h2>📊 Analytics & Insights</h2>
+            <p style="color: #999; margin-bottom: 20px;">Visual breakdown of your transaction data</p>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Transaction Volume Over Time</h3>
+                    <canvas id="volumeChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Transaction Distribution by User</h3>
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Transactions by Amount Range</h3>
+                    <canvas id="barChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>Transaction Success Rate</h3>
+                    <canvas id="doughnutChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRANSACTION HISTORY SECTION -->
+        <div class="history-section">
+            <h2>📜 Transaction History</h2>
+            
+            <div class="filter-controls">
+                <div class="filter-row">
+                    <div class="filter-item">
+                        <label>Search:</label>
+                        <input type="text" id="search-input" placeholder="Transaction ID or wallet address..." onkeyup="filterTransactions()">
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Status:</label>
+                        <select id="filter-status" onchange="filterTransactions()">
+                            <option value="ALL">All Status</option>
+                            <option value="SUCCESS">Success</option>
+                            <option value="PENDING">Pending</option>
+                            <option value="FAILED">Failed</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Amount Range:</label>
+                        <select id="filter-amount" onchange="filterTransactions()">
+                            <option value="ALL">All Amounts</option>
+                            <option value="0-50">$0 - $50</option>
+                            <option value="50-100">$50 - $100</option>
+                            <option value="100-500">$100 - $500</option>
+                            <option value="500+">$500+</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>User:</label>
+                        <select id="filter-user" onchange="filterTransactions()">
+                            <option value="ALL">All Users</option>
+                            <option value="Ahmed">Ahmed</option>
+                            <option value="Fatima">Fatima</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-actions">
+                    <button onclick="refreshData()" class="btn-refresh">🔄 Refresh Data</button>
+                    <button onclick="clearFilters()" class="btn-clear">✖️ Clear Filters</button>
+                    <button onclick="exportToCSV()" class="btn-export">📥 Export to CSV</button>
+                </div>
+            </div>
+            
+            <div class="transaction-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-transactions">0</div>
+                    <div class="stat-label">Total Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-volume">$0.00</div>
+                    <div class="stat-label">Total Volume</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-transaction">$0.00</div>
+                    <div class="stat-label">Average Amount</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-fees">$0.00</div>
+                    <div class="stat-label">Total Fees</div>
+                </div>
+            </div>
+            
+            <div id="transactions-container"></div>
+            
+            <div id="no-results" style="display: none; text-align: center; padding: 40px; color: #999;">
+                <h3>🔍 No transactions found</h3>
+                <p>Try adjusting your filters</p>
+            </div>
+        </div>
+
+        <div id="notification" class="notification"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
