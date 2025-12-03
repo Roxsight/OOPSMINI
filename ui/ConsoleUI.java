@@ -276,16 +276,164 @@ public class ConsoleUI {
         // Generate creator address
         String creatorAddress = "0x" + Integer.toHexString((int)(Math.random() * Integer.MAX_VALUE)).toUpperCase();
         
-        new FamilyVault(vaultName, purpose, maxAmount, creatorAddress);
-        System.out.println(GREEN + "✅ Vault created: " + vaultName + RESET);
+        // Persist vault via VaultService so it is manageable from UI
+        VaultService vs = VaultService.getInstance();
+        FamilyVault vault = vs.createVault(vaultName, purpose, maxAmount, creatorAddress);
+        System.out.println(GREEN + "✅ Vault created and saved: " + vault.getVaultName() + " (ID: " + vault.getVaultId() + ")" + RESET);
+        System.out.println("Creator wallet address: " + creatorAddress);
         
+        // Ask to add guardians now
+        System.out.print("Would you like to add guardians now? (y/n): ");
+        String yn = scanner.nextLine().trim().toLowerCase();
+        if (yn.equals("y") || yn.equals("yes")) {
+            boolean adding = true;
+            while (adding) {
+                addGuardianToVault(vault);
+                System.out.print("Add another guardian? (y/n): ");
+                String more = scanner.nextLine().trim().toLowerCase();
+                if (!(more.equals("y") || more.equals("yes"))) {
+                    adding = false;
+                }
+            }
+        }
+
         pause();
     }
     
     private void viewVaults() {
-        System.out.println("\n📋 Your Vaults:");
-        System.out.println("Currently no vaults available.");
+        clearScreen();
+        displayHeader();
+        System.out.println("\n📋 VAULTS");
+
+        VaultService vs = VaultService.getInstance();
+        ArrayList<FamilyVault> vaults = vs.getAllVaults();
+
+        if (vaults.isEmpty()) {
+            System.out.println("\n⚠️  No vaults yet. Create one first.");
+            pause();
+            return;
+        }
+
+        System.out.println("\nSelect a vault to view/manage:");
+        for (int i = 0; i < vaults.size(); i++) {
+            System.out.println((i+1) + ". " + vaults.get(i).toString());
+        }
+        System.out.println((vaults.size()+1) + ". Back");
+        System.out.print("Choose: ");
+        int choice = scanner.nextInt();
+        scanner.nextLine();
+
+        if (choice >= 1 && choice <= vaults.size()) {
+            FamilyVault selected = vaults.get(choice-1);
+            manageVault(selected);
+        }
+    }
+
+    private void manageVault(FamilyVault vault) {
+        boolean managing = true;
+        while (managing) {
+            clearScreen();
+            displayHeader();
+            System.out.println("\n" + BOLD + BLUE + "🏦 VAULT: " + RESET + vault.getVaultName() + " (" + vault.getVaultId() + ")");
+            System.out.println(vault.toString());
+            System.out.println("\nGuardians:");
+            if (vault.getGuardians().isEmpty()) {
+                System.out.println(" - (none)");
+            } else {
+                for (Guardian g : vault.getGuardians()) {
+                    System.out.println(" - " + g.toString());
+                }
+            }
+
+            System.out.println("\nPending Requests: " + vault.getPendingRequests().size());
+            System.out.println("\n1. Add Guardian");
+            System.out.println("2. Create Withdrawal Request");
+            System.out.println("3. View/Approve Pending Requests");
+            System.out.println("4. Back");
+            System.out.print("Choose: ");
+            int choice = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (choice) {
+                case 1:
+                    addGuardianToVault(vault);
+                    break;
+                case 2:
+                    createWithdrawalRequestUI(vault);
+                    break;
+                case 3:
+                    approveOrRejectRequests(vault);
+                    break;
+                default:
+                    managing = false;
+            }
+        }
+    }
+
+    private void addGuardianToVault(FamilyVault vault) {
+        System.out.print("\nGuardian name: ");
+        String name = scanner.nextLine();
+        System.out.print("Guardian wallet address: ");
+        String wallet = scanner.nextLine();
+        System.out.print("Guardian role (e.g. Parent, Sibling): ");
+        String role = scanner.nextLine();
+
+        Guardian g = new Guardian(name, wallet, role);
+        vault.addGuardian(g);
+        System.out.println("\n" + GREEN + "✅ Guardian added: " + g.getName() + " (" + g.getWalletAddress() + ")" + RESET);
         pause();
+    }
+
+    private void createWithdrawalRequestUI(FamilyVault vault) {
+        System.out.print("\nRequester wallet address: ");
+        String requester = scanner.nextLine();
+        System.out.print("Amount (USDT): ");
+        double amount = scanner.nextDouble();
+        scanner.nextLine();
+        System.out.print("Purpose: ");
+        String purpose = scanner.nextLine();
+        System.out.print("Proof description (optional): ");
+        String proof = scanner.nextLine();
+
+        vault.createWithdrawalRequest(requester, amount, purpose, proof);
+        System.out.println("\n" + GREEN + "✅ Withdrawal request submitted." + RESET);
+        pause();
+    }
+
+    private void approveOrRejectRequests(FamilyVault vault) {
+        ArrayList<WithdrawalRequest> pending = vault.getPendingRequests();
+        if (pending.isEmpty()) {
+            System.out.println("\nNo pending requests.");
+            pause();
+            return;
+        }
+
+        System.out.println("\nPending Requests:");
+        for (int i = 0; i < pending.size(); i++) {
+            System.out.println((i+1) + ". " + pending.get(i).toString());
+        }
+        System.out.println((pending.size()+1) + ". Back");
+        System.out.print("Choose a request: ");
+        int choice = scanner.nextInt();
+        scanner.nextLine();
+
+        if (choice >= 1 && choice <= pending.size()) {
+            WithdrawalRequest req = pending.get(choice-1);
+            System.out.print("Enter your guardian wallet address: ");
+            String guardianAddr = scanner.nextLine();
+            System.out.println("1. Approve\n2. Reject");
+            System.out.print("Choose: ");
+            int act = scanner.nextInt();
+            scanner.nextLine();
+            boolean approve = (act == 1);
+            boolean result = vault.processApproval(req.getRequestId(), guardianAddr, approve);
+            if (result) {
+                System.out.println("\n" + GREEN + "Action applied and request processed (may have released funds)." + RESET);
+            } else {
+                System.out.println("\n" + YELLOW + "Action recorded. Request may still be pending or was rejected by majority." + RESET);
+            }
+            pause();
+        }
     }
     
     private void analyticsSection() {

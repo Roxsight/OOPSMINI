@@ -16,6 +16,7 @@ public class BlockchainPaymentGUI extends JFrame {
     private JPanel usersPanel;
     private JPanel historyPanel;
     private JPanel analyticsPanel;
+    private JPanel vaultsListPanel;
     private JComboBox<String> senderCombo;
     private JComboBox<String> recipientCombo;
     
@@ -486,21 +487,26 @@ public class BlockchainPaymentGUI extends JFrame {
                 String vaultName = vaultNameField.getText().trim();
                 String purpose = purposeField.getText().trim();
                 double amount = Double.parseDouble(amountField.getText());
-                
+
                 String creatorAddress = "0x" + Integer.toHexString((int)(Math.random() * Integer.MAX_VALUE)).toUpperCase();
-                
-                new FamilyVault(vaultName, purpose, amount, creatorAddress);
-                
+
+                // Persist vault through VaultService
+                VaultService vs = VaultService.getInstance();
+                FamilyVault vault = vs.createVault(vaultName, purpose, amount, creatorAddress);
+
                 JOptionPane.showMessageDialog(panel, 
                     "✅ Vault Created Successfully!\n\nName: " + vaultName + 
                     "\nPurpose: " + purpose + 
-                    "\nAmount: $" + String.format("%.2f", amount) + " USDT",
+                    "\nAmount: $" + String.format("%.2f", amount) + " USDT\nVault ID: " + vault.getVaultId(),
                     "Success", JOptionPane.INFORMATION_MESSAGE);
-                
+
                 vaultNameField.setText("");
                 purposeField.setText("");
                 amountField.setText("");
-                
+
+                // Refresh vaults list
+                refreshVaultsPanel();
+
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(panel, "Invalid amount", "Input Error", JOptionPane.ERROR_MESSAGE);
             }
@@ -523,8 +529,223 @@ public class BlockchainPaymentGUI extends JFrame {
         formPanel.add(createBtn);
         
         panel.add(formPanel, BorderLayout.WEST);
+
+        // Right side: list of vaults and management
+        vaultsListPanel = new JPanel();
+        vaultsListPanel.setLayout(new BoxLayout(vaultsListPanel, BoxLayout.Y_AXIS));
+        vaultsListPanel.setBackground(Color.WHITE);
+        vaultsListPanel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(PRIMARY_COLOR, 1),
+            BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        ));
+
+        JScrollPane vaultsScroll = new JScrollPane(vaultsListPanel);
+        vaultsScroll.setPreferredSize(new Dimension(500, 0));
+        panel.add(vaultsScroll, BorderLayout.CENTER);
+
+        // Initial population
+        refreshVaultsPanel();
         
         return panel;
+    }
+
+    private void refreshVaultsPanel() {
+        if (vaultsListPanel == null) return;
+
+        vaultsListPanel.removeAll();
+
+        VaultService vs = VaultService.getInstance();
+        ArrayList<FamilyVault> vaults = vs.getAllVaults();
+
+        if (vaults.isEmpty()) {
+            JLabel empty = new JLabel("No vaults created yet.");
+            empty.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+            empty.setForeground(TEXT_COLOR);
+            vaultsListPanel.add(empty);
+        } else {
+            for (FamilyVault v : vaults) {
+                JPanel card = new JPanel();
+                card.setLayout(new BorderLayout());
+                card.setBackground(LIGHT_BG);
+                card.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+                JLabel title = new JLabel(v.getVaultName() + " (" + v.getVaultId() + ")");
+                title.setFont(new Font("Segoe UI", Font.BOLD, 14));
+                title.setForeground(TEXT_COLOR);
+
+                JTextArea desc = new JTextArea(v.toString());
+                desc.setEditable(false);
+                desc.setBackground(LIGHT_BG);
+
+                JButton manageBtn = new JButton("Manage");
+                manageBtn.setBackground(PRIMARY_COLOR);
+                manageBtn.setForeground(Color.WHITE);
+                manageBtn.addActionListener(ae -> showManageVaultDialog(v));
+
+                card.add(title, BorderLayout.NORTH);
+                card.add(desc, BorderLayout.CENTER);
+                card.add(manageBtn, BorderLayout.EAST);
+
+                vaultsListPanel.add(card);
+                vaultsListPanel.add(Box.createVerticalStrut(8));
+            }
+        }
+
+        vaultsListPanel.revalidate();
+        vaultsListPanel.repaint();
+    }
+
+    private void showManageVaultDialog(FamilyVault vault) {
+        JDialog dialog = new JDialog(this, "Manage Vault: " + vault.getVaultName(), true);
+        dialog.setSize(700, 500);
+        dialog.setLocationRelativeTo(this);
+
+        JPanel content = new JPanel(new BorderLayout());
+
+        // Top: basic info
+        JTextArea info = new JTextArea(vault.toString());
+        info.setEditable(false);
+        info.setBackground(Color.WHITE);
+        content.add(info, BorderLayout.NORTH);
+
+        // Center: Tabs for Guardians, Requests
+        JTabbedPane tabbed = new JTabbedPane();
+
+        // Guardians panel
+        JPanel guardiansPanel = new JPanel();
+        guardiansPanel.setLayout(new BoxLayout(guardiansPanel, BoxLayout.Y_AXIS));
+        guardiansPanel.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+
+        DefaultListModel<String> guardModel = new DefaultListModel<>();
+        for (Guardian g : vault.getGuardians()) {
+            guardModel.addElement(g.toString() + " - " + g.getWalletAddress());
+        }
+        JList<String> guardList = new JList<>(guardModel);
+        JScrollPane guardScroll = new JScrollPane(guardList);
+        guardiansPanel.add(guardScroll);
+
+        JPanel addGuardForm = new JPanel();
+        addGuardForm.setLayout(new GridLayout(4,2,8,8));
+        JTextField gName = new JTextField();
+        JTextField gWallet = new JTextField();
+        JTextField gRole = new JTextField();
+        JButton addGBtn = new JButton("Add Guardian");
+        addGBtn.setBackground(PRIMARY_COLOR);
+        addGBtn.setForeground(Color.WHITE);
+        addGBtn.addActionListener(a -> {
+            String name = gName.getText().trim();
+            String wallet = gWallet.getText().trim();
+            String role = gRole.getText().trim();
+            if (name.isEmpty() || wallet.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "Name and wallet required", "Input Error", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            Guardian ng = new Guardian(name, wallet, role.isEmpty()?"Guardian":role);
+            vault.addGuardian(ng);
+            guardModel.addElement(ng.toString() + " - " + ng.getWalletAddress());
+            gName.setText(""); gWallet.setText(""); gRole.setText("");
+            refreshVaultsPanel();
+        });
+
+        addGuardForm.add(new JLabel("Name:")); addGuardForm.add(gName);
+        addGuardForm.add(new JLabel("Wallet Address:")); addGuardForm.add(gWallet);
+        addGuardForm.add(new JLabel("Role:")); addGuardForm.add(gRole);
+        addGuardForm.add(new JLabel()); addGuardForm.add(addGBtn);
+
+        guardiansPanel.add(Box.createVerticalStrut(8));
+        guardiansPanel.add(addGuardForm);
+
+        tabbed.addTab("Guardians", guardiansPanel);
+
+        // Requests panel
+        JPanel reqPanel = new JPanel(new BorderLayout());
+        DefaultListModel<String> reqModel = new DefaultListModel<>();
+        for (WithdrawalRequest r : vault.getRequests()) {
+            reqModel.addElement(r.toString());
+        }
+        JList<String> reqList = new JList<>(reqModel);
+        JScrollPane reqScroll = new JScrollPane(reqList);
+        reqPanel.add(reqScroll, BorderLayout.CENTER);
+
+        JPanel reqActions = new JPanel(new GridLayout(3,2,8,8));
+        JTextField requesterField = new JTextField();
+        JTextField amountField = new JTextField();
+        JTextField purposeField = new JTextField();
+        JButton submitReqBtn = new JButton("Submit Withdrawal Request");
+        submitReqBtn.setBackground(PRIMARY_COLOR);
+        submitReqBtn.setForeground(Color.WHITE);
+        submitReqBtn.addActionListener(a -> {
+            try {
+                String requester = requesterField.getText().trim();
+                double amt = Double.parseDouble(amountField.getText().trim());
+                String purp = purposeField.getText().trim();
+                vault.createWithdrawalRequest(requester, amt, purp, "(from GUI)");
+                reqModel.addElement(vault.getRequests().get(vault.getRequests().size()-1).toString());
+                requesterField.setText(""); amountField.setText(""); purposeField.setText("");
+                refreshVaultsPanel();
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(dialog, "Invalid amount", "Input Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        reqActions.add(new JLabel("Requester Wallet:")); reqActions.add(requesterField);
+        reqActions.add(new JLabel("Amount:")); reqActions.add(amountField);
+        reqActions.add(new JLabel("Purpose:")); reqActions.add(purposeField);
+
+        JPanel bottomReq = new JPanel(new BorderLayout());
+        bottomReq.add(reqActions, BorderLayout.CENTER);
+        bottomReq.add(submitReqBtn, BorderLayout.SOUTH);
+
+        // Approve/Reject area
+        JPanel approvePanel = new JPanel(new GridLayout(2,2,8,8));
+        JTextField guardianAddrField = new JTextField();
+        JButton approveBtn = new JButton("Approve");
+        JButton rejectBtn = new JButton("Reject");
+        approveBtn.setBackground(new Color(34,139,34)); approveBtn.setForeground(Color.WHITE);
+        rejectBtn.setBackground(new Color(178,34,34)); rejectBtn.setForeground(Color.WHITE);
+
+        approveBtn.addActionListener(a -> {
+            int idx = reqList.getSelectedIndex();
+            if (idx < 0) { JOptionPane.showMessageDialog(dialog, "Select a request first", "Info", JOptionPane.INFORMATION_MESSAGE); return; }
+            WithdrawalRequest r = vault.getRequests().get(idx);
+            boolean ok = vault.processApproval(r.getRequestId(), guardianAddrField.getText().trim(), true);
+            JOptionPane.showMessageDialog(dialog, ok?"Request processed":"Action recorded (may still be pending)");
+            // refresh models
+            reqModel.set(idx, r.toString());
+            info.setText(vault.toString());
+            refreshVaultsPanel();
+        });
+
+        rejectBtn.addActionListener(a -> {
+            int idx = reqList.getSelectedIndex();
+            if (idx < 0) { JOptionPane.showMessageDialog(dialog, "Select a request first", "Info", JOptionPane.INFORMATION_MESSAGE); return; }
+            WithdrawalRequest r = vault.getRequests().get(idx);
+            boolean ok = vault.processApproval(r.getRequestId(), guardianAddrField.getText().trim(), false);
+            JOptionPane.showMessageDialog(dialog, ok?"Request processed":"Action recorded (may still be pending)");
+            reqModel.set(idx, r.toString());
+            info.setText(vault.toString());
+            refreshVaultsPanel();
+        });
+
+        approvePanel.add(new JLabel("Guardian wallet to act as:")); approvePanel.add(guardianAddrField);
+        approvePanel.add(approveBtn); approvePanel.add(rejectBtn);
+
+        JPanel rightReq = new JPanel(new BorderLayout());
+        rightReq.add(bottomReq, BorderLayout.NORTH);
+        rightReq.add(approvePanel, BorderLayout.SOUTH);
+
+        reqPanel.add(rightReq, BorderLayout.SOUTH);
+
+        tabbed.addTab("Requests", reqPanel);
+
+        content.add(tabbed, BorderLayout.CENTER);
+
+        JButton close = new JButton("Close");
+        close.addActionListener(a -> dialog.dispose());
+        content.add(close, BorderLayout.SOUTH);
+
+        dialog.setContentPane(content);
+        dialog.setVisible(true);
     }
     
     private JPanel createAnalyticsPanel() {
