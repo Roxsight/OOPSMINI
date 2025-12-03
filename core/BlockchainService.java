@@ -31,7 +31,7 @@ public class BlockchainService {
     // ArrayList of observers (Observer pattern)
     private ArrayList<TransactionObserver> observers = new ArrayList<>();
     
-    // HashMap to store all users by wallet address (NEW!)
+    // HashMap to store all users by wallet address 
     private HashMap<String, User> userRegistry = new HashMap<>();
     
     // Register a user in the system (simple registration)
@@ -40,7 +40,7 @@ public class BlockchainService {
         System.out.println("✅ User registered: " + user.getName());
     }
     
-    // Get user by wallet address (NEW!)
+    // Get user by wallet address 
     public User getUserByAddress(String walletAddress) {
         return userRegistry.get(walletAddress);
     }
@@ -63,7 +63,7 @@ public class BlockchainService {
         }
     }
     
-    // Send money method with exception handling (UPDATED!)
+    // Send money method with exception handling 
     public void sendMoney(User sender, String recipientAddress, double amount) 
             throws InsufficientBalanceException, InvalidAddressException, TransactionLimitExceededException {
         
@@ -99,7 +99,7 @@ public class BlockchainService {
             // Deduct from sender
             sender.updateBalance(-totalCost);
             
-            // Add to recipient if they exist in system (NEW!)
+            // Add to recipient if they exist in system 
             User recipient = userRegistry.get(recipientAddress);
             if (recipient != null) {
                 recipient.updateBalance(amount); // Recipient gets the amount WITHOUT fee
@@ -126,7 +126,7 @@ public class BlockchainService {
         }
     }
     
-    // Get transaction history (sorted using Comparable)
+    // Get transaction history 
     public ArrayList<Transaction> getTransactionHistory() {
         Collections.sort(transactionHistory);
         return transactionHistory;

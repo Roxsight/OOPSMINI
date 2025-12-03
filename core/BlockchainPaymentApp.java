@@ -48,7 +48,7 @@ public class BlockchainPaymentApp {
             System.out.print("Choose option: ");
             
             int choice = scanner.nextInt();
-            scanner.nextLine(); // consume newline
+            scanner.nextLine(); 
             
             try {
                 switch (choice) {
